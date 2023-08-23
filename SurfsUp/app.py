@@ -119,7 +119,7 @@ def tobs_page():
 
 
 @app.route(tobs_start_route)
-def tobs_start_page(start, end=None):
+def tobs_start_page(start=""):
     tobs_min_max_avg = session.query(
         func.min(measurement.tobs),
         func.max(measurement.tobs),
@@ -127,7 +127,7 @@ def tobs_start_page(start, end=None):
         filter(measurement.date >= start).\
         filter(measurement.tobs != None).all()
 
-    print(tobs_min_max_avg)
+    # print(tobs_min_max_avg)
     t_min = tobs_min_max_avg[0][0]
     t_max = tobs_min_max_avg[0][1]
     t_avg = tobs_min_max_avg[0][2]
@@ -137,7 +137,7 @@ def tobs_start_page(start, end=None):
 
 
 @app.route(tobs_start_end_route)
-def tobs_start_end_page(start, end):
+def tobs_start_end_page(start="", end=""):
     tobs_min_max_avg = session.query(
         func.min(measurement.tobs),
         func.max(measurement.tobs),
@@ -146,7 +146,7 @@ def tobs_start_end_page(start, end):
         filter(measurement.date <= end).\
         filter(measurement.tobs != None).all()
 
-    print(tobs_min_max_avg)
+    # print(tobs_min_max_avg)
     t_min = tobs_min_max_avg[0][0]
     t_max = tobs_min_max_avg[0][1]
     t_avg = tobs_min_max_avg[0][2]
