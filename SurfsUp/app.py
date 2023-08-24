@@ -6,10 +6,6 @@ from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, func
 
-import numpy as np
-import pandas as pd
-import datetime as dt
-
 #################################################
 # Database Setup
 #################################################
@@ -17,16 +13,14 @@ import datetime as dt
 engine = create_engine("sqlite:///Resources/hawaii.sqlite")
 
 # reflect an existing database into a new model
-Base = automap_base()
+base = automap_base()
 
 # reflect the tables
-Base.prepare(autoload_with=engine)
-
+base.prepare(autoload_with=engine)
 
 # Save references to each table
-measurement = Base.classes.measurement
-station = Base.classes.station
-
+measurement = base.classes.measurement
+station = base.classes.station
 
 # Create our session (link) from Python to the DB
 session = Session(engine)
@@ -36,17 +30,16 @@ session = Session(engine)
 #################################################
 app = Flask(__name__)
 
-
-
-
 #################################################
 # Flask _routes
 #################################################
+
+# Routes and their corresponding strings if they contain variables
 precipitation_route = '/api/v1.0/precipitation'
 stations_route = '/api/v1.0/stations'
 tobs_route = '/api/v1.0/tobs'
-tobs_start_route = '/api/v1.0/<start>'
 
+tobs_start_route = '/api/v1.0/<start>'
 tobs_start_route_str = '/api/v1.0/&lt;start&gt;'
 tobs_start_end_route = '/api/v1.0/<start>/<end>'
 tobs_start_end_route_str = '/api/v1.0/&lt;start&gt;/&lt;end&gt;'
@@ -54,6 +47,8 @@ tobs_start_end_route_str = '/api/v1.0/&lt;start&gt;/&lt;end&gt;'
 
 @app.route('/')
 def home():
+
+    # Create anchors links for the variance routes on the page
     routes = f"<br><a href='{precipitation_route}'>{precipitation_route}</a><br>\
     <a href='{stations_route}'>{stations_route}</a><br>\
     <a href='{tobs_route}'>{tobs_route}</a><br><br>\
@@ -68,7 +63,8 @@ def home():
 
 @app.route(precipitation_route)
 def precipitation_page():
-    # Perform a query to retrieve the data and precipitation scores
+    # A query to retrieve the data and precipitation for the 12 months starting with 2016-08-23
+    # (inclusively)
     recent12_months = session.query(
         measurement.date, measurement.prcp).\
         filter(measurement.date >= '2016-08-23').\
@@ -76,6 +72,8 @@ def precipitation_page():
         filter(measurement.prcp != None).\
         order_by(measurement.date).all()
 
+    # Each date has multiple measurements associated with from the various
+    # weather stations so each dictionary key leads to a list of measurements
     precip_dictionary = {}
     for row in recent12_months:
         if row[0] not in precip_dictionary:
@@ -87,8 +85,10 @@ def precipitation_page():
 
 @app.route(stations_route)
 def station_page():
+    # This query returns the station number and name
     stations_query = session.query(station.station, station.name).all()
 
+    # This creates a dictionary of station number and name
     stations_dictionary = {}
     for row in stations_query:
         if row[0] not in stations_dictionary:
@@ -99,18 +99,20 @@ def station_page():
 
 @app.route(tobs_route)
 def tobs_page():
-    most_active_stations = session.query(
-        measurement.station,
-        func.count(measurement.date)).\
+    # A query that returns the station number of the most active station
+    most_active_station = session.query(
+        measurement.station).\
         group_by(measurement.station).\
-        order_by(func.count(measurement.date).desc()).all()
+        order_by(func.count(measurement.date).desc()).first()[0]
 
+    # A query that returns date and temperatures for the 12 months starting with 2016-08-23
     temperatures_most_active_station = session.query(
         measurement.date, measurement.tobs).\
-        filter(measurement.station == most_active_stations[0][0]).\
-        filter(measurement.date > '2016-08-23').all()
+        filter(measurement.station == most_active_station).\
+        filter(measurement.date >= '2016-08-23').all()
 
-
+    # Create a dictionary that uses the observation date as the key and the temperature
+    # as the value
     temp_dictionary = {}
     for row in temperatures_most_active_station:
         temp_dictionary[row[0]] = row[1]
@@ -119,7 +121,10 @@ def tobs_page():
 
 
 @app.route(tobs_start_route)
-def tobs_start_page(start=""):
+def tobs_start_page(start):
+
+    # A query that returns the minimum, maximum, and average of all observed temperatures
+    # from all stations starting from the date given by the variable start (inclusively)
     tobs_min_max_avg = session.query(
         func.min(measurement.tobs),
         func.max(measurement.tobs),
@@ -127,7 +132,7 @@ def tobs_start_page(start=""):
         filter(measurement.date >= start).\
         filter(measurement.tobs != None).all()
 
-    # print(tobs_min_max_avg)
+    # Store the min, max, and average found above into a dictionary
     t_min = tobs_min_max_avg[0][0]
     t_max = tobs_min_max_avg[0][1]
     t_avg = tobs_min_max_avg[0][2]
@@ -137,7 +142,11 @@ def tobs_start_page(start=""):
 
 
 @app.route(tobs_start_end_route)
-def tobs_start_end_page(start="", end=""):
+def tobs_start_end_page(start, end):
+
+    # A query that returns the minimum, maximum, and average of all observed temperatures
+    # from all stations starting from the date given by the variable start (inclusively)
+    # and ending on the date given by the variable end (inclusively)
     tobs_min_max_avg = session.query(
         func.min(measurement.tobs),
         func.max(measurement.tobs),
@@ -146,7 +155,7 @@ def tobs_start_end_page(start="", end=""):
         filter(measurement.date <= end).\
         filter(measurement.tobs != None).all()
 
-    # print(tobs_min_max_avg)
+    # Store the min, max, and average found above into a dictionary
     t_min = tobs_min_max_avg[0][0]
     t_max = tobs_min_max_avg[0][1]
     t_avg = tobs_min_max_avg[0][2]
